@@ -1,0 +1,13 @@
+# Node / Frontend
+node_modules
+dist
+build
+.env
+.env.local
+
+# .NET / Backend 
+bin/
+obj/
+*.suo
+*.user
+.vs/
