@@ -17,8 +17,8 @@ namespace School_Admission_System_Backend.Database
 
         #region DbSets
 
-        public DbSet<User> Users { get; set; }
-        public DbSet<Student> Students { get; set; }
+        public DbSet<AdmissionClass> Classes { get; set; }
+        public DbSet<Hold> Holds { get; set; }
 
         #endregion
     }

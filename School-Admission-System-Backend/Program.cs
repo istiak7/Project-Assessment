@@ -32,12 +32,6 @@ builder.Services.AddTransient(
     typeof(IPipelineBehavior<,>),
     typeof(ValidationBehavior<,>));
 
-// JWT Settings Registration
-builder.Services.Configure<JwtSettings>(
-    builder.Configuration.GetSection("JwtSettings"));
-
-builder.AddJWTAuthentication();
-builder.Services.AddServices();
 builder.Services.AddRepositories();
 
 var app = builder.Build();
@@ -65,9 +59,6 @@ foreach (var endpoint in endpoints)
 }
 
 app.UseHttpsRedirection();
-
-app.UseAuthentication();
-app.UseAuthorization();
 
 app.MapControllers();
 
