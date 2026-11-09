@@ -24,4 +24,13 @@
     <Folder Include="Features\Holds\Shared\" />
   </ItemGroup>
 
+  <!-- The test project lives in a subfolder of this project; keep its sources
+       out of the web project's default compilation glob. -->
+  <ItemGroup>
+    <Compile Remove="SchoolAdmission.Tests\**" />
+    <Content Remove="SchoolAdmission.Tests\**" />
+    <None Remove="SchoolAdmission.Tests\**" />
+    <EmbeddedResource Remove="SchoolAdmission.Tests\**" />
+  </ItemGroup>
+
 </Project>
