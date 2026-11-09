@@ -20,3 +20,9 @@ export async function apiFetch(path, options = {}) {
 }
 
 export const getClasses = () => apiFetch('/classes')
+
+export const createClass = (name, totalSeats) =>
+  apiFetch('/classes', {
+    method: 'POST',
+    body: JSON.stringify({ name, totalSeats }),
+  })
