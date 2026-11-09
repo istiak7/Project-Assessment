@@ -9,7 +9,179 @@ import {
 } from './api'
 import './App.css'
 
-function ClassCard({ c, studentId, myHold, onChange }) {
+function HoldModal({ hold, studentId, onClose, onChange }) {
+  const [status, setStatus] = useState(hold.status || 'HELD')
+  const [working, setWorking] = useState(false)
+  const [msg, setMsg] = useState(null)
+  const [, setTick] = useState(0)
+
+  useEffect(() => {
+    if (status !== 'HELD') return
+    const id = setInterval(() => {
+      if (new Date(hold.expiresAt) - Date.now() <= 0) {
+        clearInterval(id)
+        setStatus('EXPIRED')
+        onChange()
+      } else {
+        setTick((t) => t + 1)
+      }
+    }, 1000)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, hold.expiresAt])
+
+  const secondsLeft = Math.max(
+    0,
+    Math.round((new Date(hold.expiresAt) - Date.now()) / 1000),
+  )
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0')
+  const ss = String(secondsLeft % 60).padStart(2, '0')
+  const low = secondsLeft <= 10
+  const utcTime = new Date(hold.expiresAt).toLocaleTimeString('en-US', {
+    timeZone: 'UTC',
+    hour12: true,
+  })
+
+  const handleConfirm = async () => {
+    setMsg(null)
+    setWorking(true)
+    try {
+      await confirmHold(hold.holdId, studentId)
+      setStatus('CONFIRMED')
+      onChange()
+    } catch (err) {
+      setMsg({ type: 'err', text: err.message })
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  const handleCancel = async () => {
+    setMsg(null)
+    setWorking(true)
+    try {
+      await cancelHold(hold.holdId, studentId)
+      onChange()
+      onClose()
+    } catch (err) {
+      setMsg({ type: 'err', text: err.message })
+      setWorking(false)
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal wide" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-head-left">
+            <span className="modal-icon">🕐</span>
+            <div>
+              <h3 className="modal-title">Application &amp; Admission Details</h3>
+              <span className="modal-holdid">Hold ID: h_{hold.holdId}</span>
+            </div>
+          </div>
+          <button className="modal-close" type="button" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        {status === 'HELD' && (
+          <>
+            <div className="status-grid">
+              <span className="status-side">Status:</span>
+              <div className={`expiry-box ${low ? 'low' : ''}`}>
+                <div className="expiry-top">
+                  <span className="expiry-title">🕐 Time left to expiry (HOLD EXPIRY)</span>
+                  <span className="expiry-count">
+                    {mm}:{ss}
+                  </span>
+                </div>
+                <p className="expiry-note">
+                  If the admission fee is not paid within this time, the seat will
+                  be released and made available to everyone again.
+                </p>
+              </div>
+            </div>
+
+            <div className="detail-box">
+              <div className="detail-row">
+                <span>🎓 Class &amp; Shift</span>
+                <strong>{hold.className}</strong>
+              </div>
+              <div className="detail-row">
+                <span>👤 Student Birth Registration</span>
+                <strong>{studentId}</strong>
+              </div>
+              <div className="detail-row">
+                <span># Class ID</span>
+                <strong>c_{hold.classId}</strong>
+              </div>
+              <div className="detail-row">
+                <span>📅 Expiry time (UTC)</span>
+                <strong>{utcTime}</strong>
+              </div>
+            </div>
+
+            {msg && <p className={`card-msg ${msg.type}`}>{msg.text}</p>}
+
+            <div className="modal-footer">
+              <button
+                className="btn-danger-outline"
+                type="button"
+                disabled={working}
+                onClick={handleCancel}
+              >
+                🗑 Cancel Hold
+              </button>
+              <button
+                className="btn-ghost"
+                type="button"
+                disabled={working}
+                onClick={onClose}
+              >
+                Close
+              </button>
+              <button
+                className="btn confirm"
+                type="button"
+                disabled={working}
+                onClick={handleConfirm}
+              >
+                {working ? 'Processing…' : '💳 Confirm & Pay'}
+              </button>
+            </div>
+          </>
+        )}
+
+        {status === 'CONFIRMED' && (
+          <div className="modal-result">
+            <div className="big-icon">🎉</div>
+            <p>
+              Payment successful — your seat is <strong>confirmed</strong>.
+            </p>
+            <button className="btn confirm" type="button" onClick={onClose}>
+              Done
+            </button>
+          </div>
+        )}
+
+        {status === 'EXPIRED' && (
+          <div className="modal-result">
+            <div className="big-icon">⏰</div>
+            <p>
+              This hold has <strong>expired</strong>. Please apply again.
+            </p>
+            <button className="btn-ghost" type="button" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ClassCard({ c, studentId, myHold, onOpenHold, onChange }) {
   const confirmedPct = c.totalSeats ? (c.confirmedSeats / c.totalSeats) * 100 : 0
   const heldPct = c.totalSeats ? (c.heldSeats / c.totalSeats) * 100 : 0
   const isFull = c.availableSeats <= 0
@@ -36,16 +208,27 @@ function ClassCard({ c, studentId, myHold, onChange }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHeld, myHold?.expiresAt])
 
-  const secondsLeft = myHold
+  const heldSecondsLeft = isHeld
     ? Math.max(0, Math.round((new Date(myHold.expiresAt) - Date.now()) / 1000))
     : 0
 
-  const run = async (fn) => {
+  const handleApply = async () => {
     setMsg(null)
+    if (!/^\d{17}$/.test(studentId)) {
+      setMsg({ type: 'err', text: 'Please log in with your Student ID first.' })
+      return
+    }
     setWorking(true)
     try {
-      await fn()
+      const hold = await createHold(c.id, studentId)
       onChange()
+      onOpenHold({
+        holdId: hold.holdId,
+        classId: c.id,
+        className: c.name,
+        expiresAt: hold.expiresAt,
+        status: 'HELD',
+      })
     } catch (err) {
       setMsg({ type: 'err', text: err.message })
     } finally {
@@ -53,16 +236,14 @@ function ClassCard({ c, studentId, myHold, onChange }) {
     }
   }
 
-  const handleApply = () => {
-    if (!/^\d{17}$/.test(studentId)) {
-      setMsg({ type: 'err', text: 'Enter a valid 17-digit Student ID in the header first.' })
-      return
-    }
-    run(() => createHold(c.id, studentId))
-  }
-
-  const handleConfirm = () => run(() => confirmHold(myHold.holdId, studentId))
-  const handleCancel = () => run(() => cancelHold(myHold.holdId, studentId))
+  const openExisting = () =>
+    onOpenHold({
+      holdId: myHold.holdId,
+      classId: myHold.classId,
+      className: myHold.className,
+      expiresAt: myHold.expiresAt,
+      status: 'HELD',
+    })
 
   return (
     <div className="card">
@@ -114,42 +295,24 @@ function ClassCard({ c, studentId, myHold, onChange }) {
         </div>
       </div>
 
-      {myHold ? (
+      {isHeld ? (
         <div className="app-status">
           <div className="status-line">
             <span className="status-label">👤 Your application status:</span>
-            <span className={`status-badge ${myHold.status.toLowerCase()}`}>
-              {myHold.status}
-            </span>
+            <span className="status-badge held">HELD</span>
           </div>
-
-          {isHeld && (
-            <>
-              <p className="expiry">Expires in {secondsLeft}s — confirm to secure your seat.</p>
-              <div className="actions">
-                <button
-                  className="btn confirm"
-                  type="button"
-                  disabled={working}
-                  onClick={handleConfirm}
-                >
-                  {working ? 'Working…' : '✓ Confirm Seat'}
-                </button>
-                <button
-                  className="btn-ghost"
-                  type="button"
-                  disabled={working}
-                  onClick={handleCancel}
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          )}
-
-          {isConfirmed && (
-            <p className="expiry confirmed-note">🎉 Seat confirmed — you’re enrolled.</p>
-          )}
+          <p className="expiry">Expires in {heldSecondsLeft}s — pay to secure your seat.</p>
+          <button className="btn confirm" type="button" onClick={openExisting}>
+            Confirm & Pay
+          </button>
+        </div>
+      ) : isConfirmed ? (
+        <div className="app-status">
+          <div className="status-line">
+            <span className="status-label">👤 Your application status:</span>
+            <span className="status-badge confirmed">CONFIRMED</span>
+          </div>
+          <p className="expiry confirmed-note">🎉 Seat confirmed — you’re enrolled.</p>
         </div>
       ) : (
         <button
@@ -180,11 +343,27 @@ function App() {
   const [studentId, setStudentId] = useState(
     () => localStorage.getItem('studentId') || '',
   )
+  const [draft, setDraft] = useState(
+    () => localStorage.getItem('studentId') || '',
+  )
   const [holdsByClass, setHoldsByClass] = useState({})
+  const [modalHold, setModalHold] = useState(null)
 
-  const handleStudentId = (value) => {
-    setStudentId(value)
-    localStorage.setItem('studentId', value)
+  const loggedIn = /^\d{17}$/.test(studentId)
+
+  const handleLogin = (e) => {
+    e.preventDefault()
+    if (!/^\d{17}$/.test(draft)) return
+    setStudentId(draft)
+    localStorage.setItem('studentId', draft)
+  }
+
+  const handleReset = () => {
+    localStorage.removeItem('studentId')
+    setStudentId('')
+    setDraft('')
+    setHoldsByClass({})
+    setModalHold(null)
   }
 
   const loadClasses = () => {
@@ -257,16 +436,45 @@ function App() {
               <small>Class & seat management</small>
             </span>
           </div>
-          <input
-            className="student-input"
-            type="text"
-            inputMode="numeric"
-            maxLength={17}
-            placeholder="Student ID (17 digits)"
-            value={studentId}
-            onChange={(e) => handleStudentId(e.target.value.replace(/\D/g, ''))}
-          />
-          <span className="header-count">{classes.length} classes</span>
+          <div className="auth">
+            {loggedIn ? (
+              <div className="auth-in">
+                <span className="auth-chip">
+                  <span className="auth-avatar">👤</span>
+                  <span className="auth-meta">
+                    <small>Signed in as</small>
+                    <span className="auth-id">{studentId}</span>
+                  </span>
+                </span>
+                <button className="btn-reset" type="button" onClick={handleReset}>
+                  Reset
+                </button>
+              </div>
+            ) : (
+              <form className="auth-form" onSubmit={handleLogin}>
+                <div className="auth-input-wrap">
+                  <span className="auth-ic">🎫</span>
+                  <input
+                    className="auth-input"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={17}
+                    placeholder="Enter 17-digit Student ID"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
+                  />
+                  {draft.length > 0 && (
+                    <span className={`auth-counter ${draft.length === 17 ? 'ok' : ''}`}>
+                      {draft.length}/17
+                    </span>
+                  )}
+                </div>
+                <button className="btn-login" type="submit" disabled={draft.length !== 17}>
+                  Log in
+                </button>
+              </form>
+            )}
+          </div>
         </div>
       </header>
 
@@ -328,12 +536,22 @@ function App() {
                 key={c.id}
                 studentId={studentId}
                 myHold={holdsByClass[c.id]}
+                onOpenHold={setModalHold}
                 onChange={refresh}
               />
             ))}
           </div>
         )}
       </main>
+
+      {modalHold && (
+        <HoldModal
+          hold={modalHold}
+          studentId={studentId}
+          onClose={() => setModalHold(null)}
+          onChange={refresh}
+        />
+      )}
     </>
   )
 }
