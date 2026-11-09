@@ -1,0 +1,16 @@
+@School_Admission_System_Backend_HostAddress = http://localhost:5064
+
+### Create a student
+POST {{School_Admission_System_Backend_HostAddress}}/students
+Content-Type: application/json
+
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john.doe@example.com",
+  "dateOfBirth": "2008-05-14T00:00:00Z"
+}
+
+### Get a student by id
+GET {{School_Admission_System_Backend_HostAddress}}/students/1
+Accept: application/json
