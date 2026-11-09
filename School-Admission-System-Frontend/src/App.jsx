@@ -1,12 +1,68 @@
 import { useEffect, useState } from 'react'
-import { getClasses, createClass } from './api'
+import {
+  getClasses,
+  createClass,
+  createHold,
+  getMyHolds,
+  confirmHold,
+  cancelHold,
+} from './api'
 import './App.css'
 
-function ClassCard({ c }) {
+function ClassCard({ c, studentId, myHold, onChange }) {
   const confirmedPct = c.totalSeats ? (c.confirmedSeats / c.totalSeats) * 100 : 0
   const heldPct = c.totalSeats ? (c.heldSeats / c.totalSeats) * 100 : 0
   const isFull = c.availableSeats <= 0
   const isDay = /day/i.test(c.name)
+
+  const [working, setWorking] = useState(false)
+  const [msg, setMsg] = useState(null)
+  const [, setTick] = useState(0)
+
+  const isHeld = myHold?.status === 'HELD'
+  const isConfirmed = myHold?.status === 'CONFIRMED'
+
+  useEffect(() => {
+    if (!isHeld) return
+    const id = setInterval(() => {
+      if (new Date(myHold.expiresAt) - Date.now() <= 0) {
+        clearInterval(id)
+        onChange()
+      } else {
+        setTick((t) => t + 1)
+      }
+    }, 1000)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHeld, myHold?.expiresAt])
+
+  const secondsLeft = myHold
+    ? Math.max(0, Math.round((new Date(myHold.expiresAt) - Date.now()) / 1000))
+    : 0
+
+  const run = async (fn) => {
+    setMsg(null)
+    setWorking(true)
+    try {
+      await fn()
+      onChange()
+    } catch (err) {
+      setMsg({ type: 'err', text: err.message })
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  const handleApply = () => {
+    if (!/^\d{17}$/.test(studentId)) {
+      setMsg({ type: 'err', text: 'Enter a valid 17-digit Student ID in the header first.' })
+      return
+    }
+    run(() => createHold(c.id, studentId))
+  }
+
+  const handleConfirm = () => run(() => confirmHold(myHold.holdId, studentId))
+  const handleCancel = () => run(() => cancelHold(myHold.holdId, studentId))
 
   return (
     <div className="card">
@@ -58,9 +114,55 @@ function ClassCard({ c }) {
         </div>
       </div>
 
-      <button className="btn apply" type="button" disabled={isFull}>
-        {isFull ? 'No Seats Available' : '◎ Apply & Hold Seat'}
-      </button>
+      {myHold ? (
+        <div className="app-status">
+          <div className="status-line">
+            <span className="status-label">👤 Your application status:</span>
+            <span className={`status-badge ${myHold.status.toLowerCase()}`}>
+              {myHold.status}
+            </span>
+          </div>
+
+          {isHeld && (
+            <>
+              <p className="expiry">Expires in {secondsLeft}s — confirm to secure your seat.</p>
+              <div className="actions">
+                <button
+                  className="btn confirm"
+                  type="button"
+                  disabled={working}
+                  onClick={handleConfirm}
+                >
+                  {working ? 'Working…' : '✓ Confirm Seat'}
+                </button>
+                <button
+                  className="btn-ghost"
+                  type="button"
+                  disabled={working}
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+
+          {isConfirmed && (
+            <p className="expiry confirmed-note">🎉 Seat confirmed — you’re enrolled.</p>
+          )}
+        </div>
+      ) : (
+        <button
+          className="btn apply"
+          type="button"
+          disabled={isFull || working}
+          onClick={handleApply}
+        >
+          {isFull ? 'No Seats Available' : working ? 'Holding…' : '◎ Apply & Hold Seat'}
+        </button>
+      )}
+
+      {msg && <p className={`card-msg ${msg.type}`}>{msg.text}</p>}
     </div>
   )
 }
@@ -75,6 +177,16 @@ function App() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
 
+  const [studentId, setStudentId] = useState(
+    () => localStorage.getItem('studentId') || '',
+  )
+  const [holdsByClass, setHoldsByClass] = useState({})
+
+  const handleStudentId = (value) => {
+    setStudentId(value)
+    localStorage.setItem('studentId', value)
+  }
+
   const loadClasses = () => {
     setLoading(true)
     getClasses()
@@ -86,9 +198,37 @@ function App() {
       .finally(() => setLoading(false))
   }
 
+  const loadMyHolds = () => {
+    if (!/^\d{17}$/.test(studentId)) {
+      setHoldsByClass({})
+      return
+    }
+    getMyHolds(studentId)
+      .then((list) => {
+        const map = {}
+        for (const h of Array.isArray(list) ? list : []) {
+          if ((h.status === 'HELD' || h.status === 'CONFIRMED') && !map[h.classId]) {
+            map[h.classId] = h
+          }
+        }
+        setHoldsByClass(map)
+      })
+      .catch(() => setHoldsByClass({}))
+  }
+
+  const refresh = () => {
+    loadClasses()
+    loadMyHolds()
+  }
+
   useEffect(() => {
     loadClasses()
   }, [])
+
+  useEffect(() => {
+    loadMyHolds()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studentId])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -117,6 +257,15 @@ function App() {
               <small>Class & seat management</small>
             </span>
           </div>
+          <input
+            className="student-input"
+            type="text"
+            inputMode="numeric"
+            maxLength={17}
+            placeholder="Student ID (17 digits)"
+            value={studentId}
+            onChange={(e) => handleStudentId(e.target.value.replace(/\D/g, ''))}
+          />
           <span className="header-count">{classes.length} classes</span>
         </div>
       </header>
@@ -174,7 +323,13 @@ function App() {
         ) : (
           <div className="grid">
             {classes.map((c) => (
-              <ClassCard c={c} key={c.id} />
+              <ClassCard
+                c={c}
+                key={c.id}
+                studentId={studentId}
+                myHold={holdsByClass[c.id]}
+                onChange={refresh}
+              />
             ))}
           </div>
         )}

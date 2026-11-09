@@ -44,8 +44,27 @@
   letter-spacing: 0.02em;
 }
 
-.header-count {
+.student-input {
   margin-left: auto;
+  width: 200px;
+  max-width: 45vw;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.student-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.header-count {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -357,6 +376,105 @@
 .btn.apply:disabled {
   background: var(--surface-2);
   color: var(--text-muted);
+}
+
+/* Application status + actions */
+.app-status {
+  border-top: 1px solid var(--border);
+  padding-top: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.status-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.status-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.status-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+}
+
+.status-badge.held {
+  color: var(--warning);
+  background: #fffbeb;
+}
+
+.status-badge.confirmed {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.expiry {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.expiry.confirmed-note {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn.confirm {
+  flex: 1;
+  padding: 0.65rem;
+  background: linear-gradient(135deg, var(--success), #15a34a);
+}
+
+.btn-ghost {
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.card-msg {
+  font-size: 0.82rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  margin-top: -0.25rem;
+}
+
+.card-msg.ok {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.card-msg.err {
+  color: var(--danger);
+  background: var(--danger-soft);
 }
 
 /* Messages & states */
