@@ -6,49 +6,61 @@ function ClassCard({ c }) {
   const confirmedPct = c.totalSeats ? (c.confirmedSeats / c.totalSeats) * 100 : 0
   const heldPct = c.totalSeats ? (c.heldSeats / c.totalSeats) * 100 : 0
   const isFull = c.availableSeats <= 0
+  const isDay = /day/i.test(c.name)
 
   return (
     <div className="card">
-      <div className="card-top">
-        <h3>{c.name}</h3>
-        <span className="id">#{c.id}</span>
+      <div className="card-head">
+        <span className={`shift ${isDay ? 'day' : 'morning'}`}>
+          {isDay ? 'Day Shift' : 'Morning Shift'}
+        </span>
+        <span className="id">ID: c_{c.id}</span>
+        <span className={`avail-pill ${isFull ? 'full' : ''}`}>
+          {isFull ? 'Full' : `${c.availableSeats} available`}
+        </span>
       </div>
 
-      <span className={`badge ${isFull ? 'full' : 'open'}`}>
-        {isFull ? 'Full' : 'Open'}
-      </span>
+      <h3 className="title">{c.name}</h3>
 
-      <div className="bar-wrap">
-        <div className="bar-label">
-          <span>Seats filled</span>
-          <span>
-            {c.confirmedSeats + c.heldSeats} / {c.totalSeats}
-          </span>
-        </div>
-        <div className="bar">
-          <div className="confirmed" style={{ width: `${confirmedPct}%` }} />
-          <div className="held" style={{ width: `${heldPct}%` }} />
-        </div>
+      <div className="bar">
+        <div className="confirmed" style={{ width: `${confirmedPct}%` }} />
+        <div className="held" style={{ width: `${heldPct}%` }} />
+      </div>
+
+      <div className="inline-row">
+        <span>
+          Confirmed: <strong className="c-green">{c.confirmedSeats}</strong>
+        </span>
+        <span>
+          Held: <strong className="c-amber">{c.heldSeats}</strong>
+        </span>
+        <span>
+          Total: <strong>{c.totalSeats}</strong>
+        </span>
       </div>
 
       <div className="stats">
         <div className="stat total">
+          <span className="lbl">Total Seats</span>
           <span className="num">{c.totalSeats}</span>
-          <span className="lbl">Total</span>
-        </div>
-        <div className="stat available">
-          <span className="num">{c.availableSeats}</span>
-          <span className="lbl">Available</span>
-        </div>
-        <div className="stat held">
-          <span className="num">{c.heldSeats}</span>
-          <span className="lbl">Held</span>
         </div>
         <div className="stat confirmed">
-          <span className="num">{c.confirmedSeats}</span>
           <span className="lbl">Confirmed</span>
+          <span className="num">{c.confirmedSeats}</span>
+        </div>
+        <div className="stat held">
+          <span className="lbl">Held</span>
+          <span className="num">{c.heldSeats}</span>
+        </div>
+        <div className="stat available">
+          <span className="lbl">Available</span>
+          <span className="num">{c.availableSeats}</span>
         </div>
       </div>
+
+      <button className="btn apply" type="button" disabled={isFull}>
+        {isFull ? 'No Seats Available' : '◎ Apply & Hold Seat'}
+      </button>
     </div>
   )
 }
