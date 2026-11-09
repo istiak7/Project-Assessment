@@ -10,33 +10,38 @@ namespace School_Admission_System_Backend.Features.Holds.Command.CreateHold
 {
     public class CreateHoldHandler : IRequestHandler<CreateHoldCommand, Result>
     {
-        private readonly AppDbContext _db;
+        private readonly AppDbContext _dbContext;
         private readonly HoldSettings _holdSettings;
 
         public CreateHoldHandler(AppDbContext db, HoldSettings holdSettings)
         {
-            _db = db;
+            _dbContext = db;
             _holdSettings = holdSettings;
         }
 
         public async Task<Result> Handle(CreateHoldCommand request, CancellationToken cancellationToken)
         {
-            await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
+            // lock the class row to prevent race conditions when checking for available seats
 
-            await _db.Database.ExecuteSqlInterpolatedAsync(
+            await _dbContext.Database.ExecuteSqlInterpolatedAsync(
                 $"SELECT 1 FROM classes WHERE \"Id\" = {request.ClassId} FOR UPDATE",
                 cancellationToken);
 
-            var admissionClass = await _db.Classes
+
+            // check if the class exists
+            var admissionClass = await _dbContext.Classes
                 .FirstOrDefaultAsync(c => c.Id == request.ClassId, cancellationToken);
 
             if (admissionClass is null)
                 return Fail(StatusCodes.Status404NotFound, "Class not found.");
 
+
+
             var now = DateTime.UtcNow;
 
-            var hasActive = await _db.Holds.AnyAsync(h =>
+            var hasActive = await _dbContext.Holds.AnyAsync(h =>
                 h.AdmissionClassId == request.ClassId &&
                 h.StudentId == request.StudentId &&
                 (h.Status == HoldStatus.Confirmed ||
@@ -47,16 +52,24 @@ namespace School_Admission_System_Backend.Features.Holds.Command.CreateHold
                 return Fail(StatusCodes.Status409Conflict,
                     "You already have an active application for this class.");
 
-            var confirmedSeats = await _db.Holds.CountAsync(h =>
+
+
+
+            // check if there are available seats
+
+            var confirmedSeats = await _dbContext.Holds.CountAsync(h =>
                 h.AdmissionClassId == request.ClassId &&
                 h.Status == HoldStatus.Confirmed, cancellationToken);
 
-            var heldSeats = await _db.Holds.CountAsync(h =>
+            var heldSeats = await _dbContext.Holds.CountAsync(h =>
                 h.AdmissionClassId == request.ClassId &&
                 h.Status == HoldStatus.Held && h.ExpiresAt > now, cancellationToken);
 
             if (confirmedSeats + heldSeats >= admissionClass.TotalSeats)
                 return Fail(StatusCodes.Status409Conflict, "No seats available for this class.");
+
+
+            // create the hold
 
             var hold = new Hold
             {
@@ -66,8 +79,8 @@ namespace School_Admission_System_Backend.Features.Holds.Command.CreateHold
                 ExpiresAt = now.AddSeconds(_holdSettings.DurationSeconds)
             };
 
-            _db.Holds.Add(hold);
-            await _db.SaveChangesAsync(cancellationToken);
+            _dbContext.Holds.Add(hold);
+            await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
             var response = new CreateHoldResponse(
