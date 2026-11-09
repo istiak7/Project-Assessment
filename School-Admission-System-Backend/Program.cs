@@ -34,6 +34,13 @@ builder.Services.AddTransient(
 
 builder.Services.AddRepositories();
 
+// Hold duration from HOLD_DURATION_SECONDS env var (default 600).
+var holdDurationSeconds =
+    int.TryParse(builder.Configuration["HOLD_DURATION_SECONDS"], out var seconds) && seconds > 0
+        ? seconds
+        : 600;
+builder.Services.AddSingleton(new HoldSettings { DurationSeconds = holdDurationSeconds });
+
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
