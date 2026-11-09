@@ -1,11 +1,12 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System.Reflection;
 using School_Admission_System_Backend.Database;
+using School_Admission_System_Backend.Features.Holds.BackgroundServices;
 using School_Admission_System_Backend.Middleware;
 using School_Admission_System_Backend.Shared;
 using School_Admission_System_Backend.Shared.Extensions.DependencyExtensions;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,8 +39,10 @@ builder.Services.AddRepositories();
 var holdDurationSeconds =
     int.TryParse(builder.Configuration["HOLD_DURATION_SECONDS"], out var seconds) && seconds > 0
         ? seconds
-        : 600;
+        : 10;
 builder.Services.AddSingleton(new HoldSettings { DurationSeconds = holdDurationSeconds });
+
+builder.Services.AddHostedService<HoldExpiryService>();
 
 var app = builder.Build();
 
