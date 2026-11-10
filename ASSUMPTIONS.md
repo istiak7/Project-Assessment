@@ -5,9 +5,9 @@ My Thinking : In-Memory vs Database Locking
   - To support multi-process we have to look Database-level Row-Level Locking.
   - PostgreSQL handles request automatically FIFO.
   - Database row-level locks ensure that concurrent requests
-
+  so, i use 'UPDATE FOR' for row lock 
 ## Atomic Transactions
-  - In a same lock, apply db row lock, check seat availiblity, then held.consider in a transaction.
+  - In a same lock, apply db row lock, check seat availiblity, then held insert operation.consider in a transaction.
 
 ## Expiry & Automatic Seat Release
 
