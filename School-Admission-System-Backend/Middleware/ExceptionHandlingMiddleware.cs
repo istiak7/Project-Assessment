@@ -1,4 +1,5 @@
 using FluentValidation;
+using School_Admission_System_Backend.Shared;
 using System.Text.Json;
 
 namespace School_Admission_System_Backend.Middleware
@@ -11,21 +12,28 @@ namespace School_Admission_System_Backend.Middleware
             {
                 await next(context);
             }
+            catch (AppException ex)
+            {
+                await WriteJsonAsync(context, ex.StatusCode, ex.Message);
+            }
             catch (ValidationException ex)
             {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-
-                var errors = ex.Errors.Select(e => new { e.PropertyName, e.ErrorMessage });
-                var response = JsonSerializer.Serialize(new { Message = "Validation Failed", Errors = errors });
-
-                context.Response.ContentType = "application/json";
-                await context.Response.WriteAsync(response);
+                var message = ex.Errors.FirstOrDefault()?.ErrorMessage ?? "Validation failed.";
+                await WriteJsonAsync(context, StatusCodes.Status400BadRequest, message);
             }
             catch (Exception)
             {
-                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                await context.Response.WriteAsync("An unexpected error occurred.");
+                await WriteJsonAsync(context, StatusCodes.Status500InternalServerError,
+                    "An unexpected error occurred.");
             }
+        }
+
+        // All error responses share the same simple shape: { "message": "..." }.
+        private static async Task WriteJsonAsync(HttpContext context, int statusCode, string message)
+        {
+            context.Response.StatusCode = statusCode;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new { message }));
         }
     }
 }

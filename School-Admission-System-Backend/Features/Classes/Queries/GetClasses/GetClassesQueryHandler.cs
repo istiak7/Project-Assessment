@@ -3,11 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using School_Admission_System_Backend.Database;
 using School_Admission_System_Backend.Entities.Common;
 using School_Admission_System_Backend.Features.Classes.Shared;
-using School_Admission_System_Backend.Shared;
 
 namespace School_Admission_System_Backend.Features.Classes.Queries.GetClasses
 {
-    public class GetClassesQueryHandler : IRequestHandler<GetClassesQuery, Result>
+    public class GetClassesQueryHandler : IRequestHandler<GetClassesQuery, List<ClassResponse>>
     {
         private readonly AppDbContext _db;
 
@@ -16,10 +15,10 @@ namespace School_Admission_System_Backend.Features.Classes.Queries.GetClasses
             _db = db;
         }
 
-        public async Task<Result> Handle(GetClassesQuery request, CancellationToken cancellationToken)
+        public async Task<List<ClassResponse>> Handle(GetClassesQuery request, CancellationToken cancellationToken)
         {
             var now = DateTime.UtcNow;
-            var data = await _db.Classes
+            return await _db.Classes
                 .OrderBy(c => c.Id)
                 .Select(c => new
                 {
@@ -37,14 +36,6 @@ namespace School_Admission_System_Backend.Features.Classes.Queries.GetClasses
                     c.ConfirmedSeats,
                     c.TotalSeats - c.HeldSeats - c.ConfirmedSeats))
                 .ToListAsync(cancellationToken);
-
-            return new Result
-            {
-                IsSuccess = true,
-                StatusCode = StatusCodes.Status200OK,
-                Status = "OK",
-                Data = data
-            };
         }
     }
 }

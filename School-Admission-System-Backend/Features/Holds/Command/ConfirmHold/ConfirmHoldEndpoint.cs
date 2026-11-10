@@ -1,6 +1,5 @@
 using MediatR;
 using School_Admission_System_Backend.Shared;
-using School_Admission_System_Backend.Shared.Extensions;
 
 namespace School_Admission_System_Backend.Features.Holds.Command.ConfirmHold
 {
@@ -12,13 +11,12 @@ namespace School_Admission_System_Backend.Features.Holds.Command.ConfirmHold
                 async (string holdId, HttpRequest httpRequest, ISender sender) =>
                 {
                     if (!int.TryParse(holdId, out var id))
-                        return Results.Json(new { message = "Hold not found." },
-                            statusCode: StatusCodes.Status404NotFound);
+                        throw new AppException(StatusCodes.Status404NotFound, "Hold not found.");
 
                     var studentId = httpRequest.Headers["X-Student-Id"].ToString();
 
-                    var result = await sender.Send(new ConfirmHoldCommand(id, studentId));
-                    return result.ToHttpResult();
+                    var response = await sender.Send(new ConfirmHoldCommand(id, studentId));
+                    return Results.Ok(response);
                 }).WithTags("Holds");
         }
     }

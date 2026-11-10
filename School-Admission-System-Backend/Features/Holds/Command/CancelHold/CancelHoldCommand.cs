@@ -1,7 +1,6 @@
 using MediatR;
-using School_Admission_System_Backend.Shared;
 
 namespace School_Admission_System_Backend.Features.Holds.Command.CancelHold
 {
-    public record CancelHoldCommand(int HoldId, string StudentId) : IRequest<Result>;
+    public record CancelHoldCommand(int HoldId, string StudentId) : IRequest<Unit>;
 }

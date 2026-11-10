@@ -1,6 +1,5 @@
 using MediatR;
 using School_Admission_System_Backend.Shared;
-using School_Admission_System_Backend.Shared.Extensions;
 
 namespace School_Admission_System_Backend.Features.Holds.Queries.GetMyHolds
 {
@@ -12,8 +11,7 @@ namespace School_Admission_System_Backend.Features.Holds.Queries.GetMyHolds
             {
                 var studentId = httpRequest.Headers["X-Student-Id"].ToString();
 
-                var result = await sender.Send(new GetMyHoldsQuery(studentId));
-                return result.ToHttpResult();
+                return Results.Ok(await sender.Send(new GetMyHoldsQuery(studentId)));
             }).WithTags("Holds");
         }
     }

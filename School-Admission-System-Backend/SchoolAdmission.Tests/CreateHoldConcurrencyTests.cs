@@ -56,12 +56,21 @@ public sealed class CreateHoldConcurrencyTests : IAsyncLifetime
 
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        async Task<Result> RaceAsync(string studentId)
+        // A successful hold returns a response; a rejected one throws AppException.
+        async Task<AppException?> RaceAsync(string studentId)
         {
             await gate.Task;
             await using var db = NewContext();
-            return await new CreateHoldHandler(db, LongHold)
-                .Handle(new CreateHoldCommand(classId, studentId), CancellationToken.None);
+            try
+            {
+                await new CreateHoldHandler(db, LongHold)
+                    .Handle(new CreateHoldCommand(classId, studentId), CancellationToken.None);
+                return null;
+            }
+            catch (AppException ex)
+            {
+                return ex;
+            }
         }
 
         var tasks = studentIds.Select(RaceAsync).ToArray();
@@ -72,8 +81,10 @@ public sealed class CreateHoldConcurrencyTests : IAsyncLifetime
 
         // Assert
         var expectedGranted = Math.Min(totalSeats, racers);
-        var granted = results.Count(r => r.StatusCode == 201);
-        var rejected = results.Count(r => r.StatusCode == 409 && r.Message.Contains("No seats available", StringComparison.OrdinalIgnoreCase));
+        var granted = results.Count(r => r is null);
+        var rejected = results.Count(r =>
+            r is { StatusCode: 409 } &&
+            r.Message.Contains("No seats available", StringComparison.OrdinalIgnoreCase));
 
         Assert.Equal(expectedGranted, granted);
         Assert.Equal(racers - expectedGranted, rejected);
@@ -96,7 +107,7 @@ public sealed class CreateHoldConcurrencyTests : IAsyncLifetime
 
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        async Task<Result> ConfirmAsync()
+        async Task<ConfirmHoldResponse> ConfirmAsync()
         {
             await gate.Task;
             await using var db = NewContext();
@@ -111,7 +122,7 @@ public sealed class CreateHoldConcurrencyTests : IAsyncLifetime
         var results = await Task.WhenAll(tasks);
 
         // Assert: every hit succeeded, and the hold is confirmed exactly once.
-        Assert.All(results, r => Assert.Equal(200, r.StatusCode));
+        Assert.All(results, r => Assert.Equal("CONFIRMED", r.Status));
 
         await using var verify = NewContext();
         var confirmedCount = await verify.Holds.CountAsync(h =>
@@ -126,11 +137,10 @@ public sealed class CreateHoldConcurrencyTests : IAsyncLifetime
         const int nonExistentHoldId = 999_999_999;
 
         await using var db = NewContext();
-        var result = await new ConfirmHoldHandler(db)
-            .Handle(new ConfirmHoldCommand(nonExistentHoldId, "9000000000000001"), CancellationToken.None);
+        var ex = await Assert.ThrowsAsync<AppException>(() => new ConfirmHoldHandler(db)
+            .Handle(new ConfirmHoldCommand(nonExistentHoldId, "9000000000000001"), CancellationToken.None));
 
-        Assert.Equal(404, result.StatusCode);
-        Assert.False(result.IsSuccess);
+        Assert.Equal(404, ex.StatusCode);
     }
 
     private AppDbContext NewContext() => new(_options);

@@ -1,11 +1,10 @@
 using MediatR;
 using School_Admission_System_Backend.Entities;
-using School_Admission_System_Backend.Shared;
 using School_Admission_System_Backend.Shared.Repository;
 
 namespace School_Admission_System_Backend.Features.Classes.Command.CreateClass
 {
-    public class CreateClassHandler : IRequestHandler<CreateClassCommand, Result>
+    public class CreateClassHandler : IRequestHandler<CreateClassCommand, CreateClassResponse>
     {
         private readonly IBaseRepository<AdmissionClass> _classes;
 
@@ -14,7 +13,7 @@ namespace School_Admission_System_Backend.Features.Classes.Command.CreateClass
             _classes = classes;
         }
 
-        public async Task<Result> Handle(CreateClassCommand request, CancellationToken cancellationToken)
+        public async Task<CreateClassResponse> Handle(CreateClassCommand request, CancellationToken cancellationToken)
         {
             var entity = new AdmissionClass
             {
@@ -25,15 +24,7 @@ namespace School_Admission_System_Backend.Features.Classes.Command.CreateClass
             await _classes.AddAsync(entity, cancellationToken);
             await _classes.SaveChangesAsync(cancellationToken);
 
-            var response = new CreateClassResponse(entity.Id.ToString(), entity.Name, entity.TotalSeats);
-
-            return new Result
-            {
-                IsSuccess = true,
-                StatusCode = StatusCodes.Status201Created,
-                Status = "Created",
-                Data = response
-            };
+            return new CreateClassResponse(entity.Id.ToString(), entity.Name, entity.TotalSeats);
         }
     }
 }

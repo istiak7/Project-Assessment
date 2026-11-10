@@ -13,11 +13,8 @@ export async function apiFetch(path, options = {}) {
   const data = text ? JSON.parse(text) : null
 
   if (!res.ok) {
-    const message =
-      data?.message ||
-      data?.Message ||
-      data?.Errors?.[0]?.ErrorMessage ||
-      `Request failed (${res.status})`
+    // The backend returns a consistent { "message": "..." } body on every error.
+    const message = data?.message || `Request failed (${res.status})`
     throw new Error(message)
   }
 

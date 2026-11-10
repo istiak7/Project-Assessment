@@ -7,7 +7,7 @@ using School_Admission_System_Backend.Shared;
 
 namespace School_Admission_System_Backend.Features.Classes.Queries.GetClass
 {
-    public class GetClassQueryHandler : IRequestHandler<GetClassQuery, Result>
+    public class GetClassQueryHandler : IRequestHandler<GetClassQuery, ClassResponse>
     {
         private readonly AppDbContext _db;
 
@@ -16,7 +16,7 @@ namespace School_Admission_System_Backend.Features.Classes.Queries.GetClass
             _db = db;
         }
 
-        public async Task<Result> Handle(GetClassQuery request, CancellationToken cancellationToken)
+        public async Task<ClassResponse> Handle(GetClassQuery request, CancellationToken cancellationToken)
         {
             var now = DateTime.UtcNow;
 
@@ -40,23 +40,9 @@ namespace School_Admission_System_Backend.Features.Classes.Queries.GetClass
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (data is null)
-            {
-                return new Result
-                {
-                    IsSuccess = false,
-                    StatusCode = StatusCodes.Status404NotFound,
-                    Status = "Not Found",
-                    Message = "Class not found."
-                };
-            }
+                throw new AppException(StatusCodes.Status404NotFound, "Class not found.");
 
-            return new Result
-            {
-                IsSuccess = true,
-                StatusCode = StatusCodes.Status200OK,
-                Status = "OK",
-                Data = data
-            };
+            return data;
         }
     }
 }

@@ -2,11 +2,10 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using School_Admission_System_Backend.Database;
 using School_Admission_System_Backend.Features.Holds.Shared;
-using School_Admission_System_Backend.Shared;
 
 namespace School_Admission_System_Backend.Features.Holds.Queries.GetMyHolds
 {
-    public class GetMyHoldsQueryHandler : IRequestHandler<GetMyHoldsQuery, Result>
+    public class GetMyHoldsQueryHandler : IRequestHandler<GetMyHoldsQuery, List<MyHoldResponse>>
     {
         private readonly AppDbContext _db;
 
@@ -15,7 +14,7 @@ namespace School_Admission_System_Backend.Features.Holds.Queries.GetMyHolds
             _db = db;
         }
 
-        public async Task<Result> Handle(GetMyHoldsQuery request, CancellationToken cancellationToken)
+        public async Task<List<MyHoldResponse>> Handle(GetMyHoldsQuery request, CancellationToken cancellationToken)
         {
             var rows = await _db.Holds
                 .AsNoTracking()
@@ -32,20 +31,12 @@ namespace School_Admission_System_Backend.Features.Holds.Queries.GetMyHolds
                 .ToListAsync(cancellationToken);
 
             var now = DateTime.UtcNow;
-            var data = rows.Select(h => new MyHoldResponse(
+            return rows.Select(h => new MyHoldResponse(
                 h.Id.ToString(),
                 h.AdmissionClassId.ToString(),
                 h.ClassName,
                 HoldStatusExtensions.Effective(h.Status, h.ExpiresAt, now).ToApiString(),
                 h.ExpiresAt)).ToList();
-
-            return new Result
-            {
-                IsSuccess = true,
-                StatusCode = StatusCodes.Status200OK,
-                Status = "OK",
-                Data = data
-            };
         }
     }
 }

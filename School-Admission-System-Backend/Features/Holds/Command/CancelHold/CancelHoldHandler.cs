@@ -6,7 +6,7 @@ using School_Admission_System_Backend.Shared;
 
 namespace School_Admission_System_Backend.Features.Holds.Command.CancelHold
 {
-    public class CancelHoldHandler : IRequestHandler<CancelHoldCommand, Result>
+    public class CancelHoldHandler : IRequestHandler<CancelHoldCommand, Unit>
     {
         private readonly AppDbContext _db;
 
@@ -15,7 +15,7 @@ namespace School_Admission_System_Backend.Features.Holds.Command.CancelHold
             _db = db;
         }
 
-        public async Task<Result> Handle(CancelHoldCommand request, CancellationToken cancellationToken)
+        public async Task<Unit> Handle(CancelHoldCommand request, CancellationToken cancellationToken)
         {
             await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
 
@@ -27,10 +27,10 @@ namespace School_Admission_System_Backend.Features.Holds.Command.CancelHold
                 .FirstOrDefaultAsync(h => h.Id == request.HoldId, cancellationToken);
 
             if (hold is null)
-                return Fail(StatusCodes.Status404NotFound, "Hold not found.");
+                throw new AppException(StatusCodes.Status404NotFound, "Hold not found.");
 
             if (hold.StudentId != request.StudentId)
-                return Fail(StatusCodes.Status403Forbidden, "This application belongs to another student.");
+                throw new AppException(StatusCodes.Status403Forbidden, "This application belongs to another student.");
 
             if (hold.Status != HoldStatus.Cancelled)
             {
@@ -40,20 +40,7 @@ namespace School_Admission_System_Backend.Features.Holds.Command.CancelHold
 
             await transaction.CommitAsync(cancellationToken);
 
-            return new Result
-            {
-                IsSuccess = true,
-                StatusCode = StatusCodes.Status204NoContent,
-                Status = "No Content"
-            };
+            return Unit.Value;
         }
-
-        private static Result Fail(int statusCode, string message) => new()
-        {
-            IsSuccess = false,
-            StatusCode = statusCode,
-            Status = "Error",
-            Message = message
-        };
     }
 }

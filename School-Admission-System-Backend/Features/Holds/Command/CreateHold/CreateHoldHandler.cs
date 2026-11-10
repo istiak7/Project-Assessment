@@ -8,7 +8,7 @@ using School_Admission_System_Backend.Shared;
 
 namespace School_Admission_System_Backend.Features.Holds.Command.CreateHold
 {
-    public class CreateHoldHandler : IRequestHandler<CreateHoldCommand, Result>
+    public class CreateHoldHandler : IRequestHandler<CreateHoldCommand, CreateHoldResponse>
     {
         private readonly AppDbContext _dbContext;
         private readonly HoldSettings _holdSettings;
@@ -19,7 +19,7 @@ namespace School_Admission_System_Backend.Features.Holds.Command.CreateHold
             _holdSettings = holdSettings;
         }
 
-        public async Task<Result> Handle(CreateHoldCommand request, CancellationToken cancellationToken)
+        public async Task<CreateHoldResponse> Handle(CreateHoldCommand request, CancellationToken cancellationToken)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
@@ -35,7 +35,7 @@ namespace School_Admission_System_Backend.Features.Holds.Command.CreateHold
                 .FirstOrDefaultAsync(c => c.Id == request.ClassId, cancellationToken);
 
             if (admissionClass is null)
-                return Fail(StatusCodes.Status404NotFound, "Class not found.");
+                throw new AppException(StatusCodes.Status404NotFound, "Class not found.");
 
 
 
@@ -49,7 +49,7 @@ namespace School_Admission_System_Backend.Features.Holds.Command.CreateHold
                 cancellationToken);
 
             if (hasActive)
-                return Fail(StatusCodes.Status409Conflict,
+                throw new AppException(StatusCodes.Status409Conflict,
                     "You already have an active application for this class.");
 
 
@@ -66,7 +66,7 @@ namespace School_Admission_System_Backend.Features.Holds.Command.CreateHold
                 h.Status == HoldStatus.Held && h.ExpiresAt > now, cancellationToken);
 
             if (confirmedSeats + heldSeats >= admissionClass.TotalSeats)
-                return Fail(StatusCodes.Status409Conflict, "No seats available for this class.");
+                throw new AppException(StatusCodes.Status409Conflict, "No seats available for this class.");
 
 
             // create the hold
@@ -83,28 +83,12 @@ namespace School_Admission_System_Backend.Features.Holds.Command.CreateHold
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            var response = new CreateHoldResponse(
+            return new CreateHoldResponse(
                 hold.Id.ToString(),
                 hold.AdmissionClassId.ToString(),
                 hold.StudentId,
                 hold.Status.ToApiString(),
                 hold.ExpiresAt);
-
-            return new Result
-            {
-                IsSuccess = true,
-                StatusCode = StatusCodes.Status201Created,
-                Status = "Created",
-                Data = response
-            };
         }
-
-        private static Result Fail(int statusCode, string message) => new()
-        {
-            IsSuccess = false,
-            StatusCode = statusCode,
-            Status = "Error",
-            Message = message
-        };
     }
 }

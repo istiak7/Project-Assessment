@@ -7,7 +7,7 @@ using School_Admission_System_Backend.Shared;
 
 namespace School_Admission_System_Backend.Features.Holds.Command.ConfirmHold
 {
-    public class ConfirmHoldHandler : IRequestHandler<ConfirmHoldCommand, Result>
+    public class ConfirmHoldHandler : IRequestHandler<ConfirmHoldCommand, ConfirmHoldResponse>
     {
         private readonly AppDbContext _db;
 
@@ -16,7 +16,7 @@ namespace School_Admission_System_Backend.Features.Holds.Command.ConfirmHold
             _db = db;
         }
 
-        public async Task<Result> Handle(ConfirmHoldCommand request, CancellationToken cancellationToken)
+        public async Task<ConfirmHoldResponse> Handle(ConfirmHoldCommand request, CancellationToken cancellationToken)
         {
             await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
 
@@ -28,19 +28,20 @@ namespace School_Admission_System_Backend.Features.Holds.Command.ConfirmHold
                 .FirstOrDefaultAsync(h => h.Id == request.HoldId, cancellationToken);
 
             if (hold is null)
-                return Fail(StatusCodes.Status404NotFound, "Hold not found.");
+                throw new AppException(StatusCodes.Status404NotFound, "Hold not found.");
 
             if (hold.StudentId != request.StudentId)
-                return Fail(StatusCodes.Status403Forbidden, "This application belongs to another student.");
+                throw new AppException(StatusCodes.Status403Forbidden, "This application belongs to another student.");
 
+            // Confirming an already-confirmed hold is idempotent: no extra seat is taken.
             if (hold.Status == HoldStatus.Confirmed)
-                return Ok(hold.Id.ToString());
+                return Confirmed(hold.Id);
 
             if (hold.Status != HoldStatus.Held)
-                return Fail(StatusCodes.Status409Conflict, "This application can no longer be confirmed.");
+                throw new AppException(StatusCodes.Status409Conflict, "This application can no longer be confirmed.");
 
             if (hold.ExpiresAt <= DateTime.UtcNow)
-                return Fail(StatusCodes.Status409Conflict, "This application has expired.");
+                throw new AppException(StatusCodes.Status409Conflict, "This application has expired.");
 
             hold.Status = HoldStatus.Confirmed;
             hold.ConfirmedAt = DateTime.UtcNow;
@@ -48,23 +49,10 @@ namespace School_Admission_System_Backend.Features.Holds.Command.ConfirmHold
             await _db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            return Ok(hold.Id.ToString());
+            return Confirmed(hold.Id);
         }
 
-        private static Result Ok(string holdId) => new()
-        {
-            IsSuccess = true,
-            StatusCode = StatusCodes.Status200OK,
-            Status = "OK",
-            Data = new ConfirmHoldResponse(holdId, HoldStatus.Confirmed.ToApiString())
-        };
-
-        private static Result Fail(int statusCode, string message) => new()
-        {
-            IsSuccess = false,
-            StatusCode = statusCode,
-            Status = "Error",
-            Message = message
-        };
+        private static ConfirmHoldResponse Confirmed(int holdId) =>
+            new(holdId.ToString(), HoldStatus.Confirmed.ToApiString());
     }
 }

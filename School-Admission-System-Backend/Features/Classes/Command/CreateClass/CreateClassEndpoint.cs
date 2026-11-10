@@ -1,6 +1,5 @@
 using MediatR;
 using School_Admission_System_Backend.Shared;
-using School_Admission_System_Backend.Shared.Extensions;
 
 namespace School_Admission_System_Backend.Features.Classes.Command.CreateClass
 {
@@ -10,8 +9,8 @@ namespace School_Admission_System_Backend.Features.Classes.Command.CreateClass
         {
             endpoints.MapPost("/classes", async (CreateClassCommand command, ISender sender) =>
             {
-                var result = await sender.Send(command);
-                return result.ToHttpResult();
+                var response = await sender.Send(command);
+                return Results.Json(response, statusCode: StatusCodes.Status201Created);
             }).WithTags("Classes");
         }
     }

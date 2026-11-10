@@ -1,6 +1,5 @@
 using MediatR;
 using School_Admission_System_Backend.Shared;
-using School_Admission_System_Backend.Shared.Extensions;
 
 namespace School_Admission_System_Backend.Features.Holds.Queries.GetHold
 {
@@ -11,11 +10,9 @@ namespace School_Admission_System_Backend.Features.Holds.Queries.GetHold
             endpoints.MapGet("/holds/{holdId}", async (string holdId, ISender sender) =>
             {
                 if (!int.TryParse(holdId, out var id))
-                    return Results.Json(new { message = "Hold not found." },
-                        statusCode: StatusCodes.Status404NotFound);
+                    throw new AppException(StatusCodes.Status404NotFound, "Hold not found.");
 
-                var result = await sender.Send(new GetHoldQuery(id));
-                return result.ToHttpResult();
+                return Results.Ok(await sender.Send(new GetHoldQuery(id)));
             }).WithTags("Holds");
         }
     }

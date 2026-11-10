@@ -6,7 +6,7 @@ using School_Admission_System_Backend.Shared;
 
 namespace School_Admission_System_Backend.Features.Holds.Queries.GetHold
 {
-    public class GetHoldQueryHandler : IRequestHandler<GetHoldQuery, Result>
+    public class GetHoldQueryHandler : IRequestHandler<GetHoldQuery, GetHoldResponse>
     {
         private readonly AppDbContext _db;
 
@@ -15,37 +15,21 @@ namespace School_Admission_System_Backend.Features.Holds.Queries.GetHold
             _db = db;
         }
 
-        public async Task<Result> Handle(GetHoldQuery request, CancellationToken cancellationToken)
+        public async Task<GetHoldResponse> Handle(GetHoldQuery request, CancellationToken cancellationToken)
         {
             var hold = await _db.Holds
                 .AsNoTracking()
                 .FirstOrDefaultAsync(h => h.Id == request.HoldId, cancellationToken);
 
             if (hold is null)
-            {
-                return new Result
-                {
-                    IsSuccess = false,
-                    StatusCode = StatusCodes.Status404NotFound,
-                    Status = "Not Found",
-                    Message = "Hold not found."
-                };
-            }
+                throw new AppException(StatusCodes.Status404NotFound, "Hold not found.");
 
             var now = DateTime.UtcNow;
-            var response = new GetHoldResponse(
+            return new GetHoldResponse(
                 hold.Id.ToString(),
                 hold.AdmissionClassId.ToString(),
                 hold.Effective(now).ToApiString(),
                 hold.ExpiresAt);
-
-            return new Result
-            {
-                IsSuccess = true,
-                StatusCode = StatusCodes.Status200OK,
-                Status = "OK",
-                Data = response
-            };
         }
     }
 }
