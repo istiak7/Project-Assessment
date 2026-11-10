@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: school-admission-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-istiakahmed}
+      POSTGRES_DB: ${POSTGRES_DB:-schooladmission_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-schooladmission_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./School-Admission-System-Backend
+      dockerfile: Dockerfile
+    container_name: school-admission-backend
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:8080
+      # Env var overrides appsettings.json. Host is the compose service name "db".
+      DB_CONNECTION_STRING: "Host=db;Port=5432;Database=${POSTGRES_DB:-schooladmission_db};User ID=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-istiakahmed};Minimum Pool Size=4;Maximum Pool Size=20;Timeout=60;Command Timeout=60;Keepalive=10;"
+      HOLD_DURATION_SECONDS: ${HOLD_DURATION_SECONDS:-300}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./School-Admission-System-Frontend
+      dockerfile: Dockerfile
+    container_name: school-admission-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge

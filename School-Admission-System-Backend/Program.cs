@@ -18,9 +18,11 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Database Registration
+var dbConnectionString =
+    builder.Configuration["DB_CONNECTION_STRING"]
+    ?? builder.Configuration.GetConnectionString("DbConnectionString");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DbConnectionString")));
+    options.UseNpgsql(dbConnectionString));
 
 // MediatR Registration
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
@@ -35,18 +37,28 @@ builder.Services.AddTransient(
 
 builder.Services.AddRepositories();
 
-// Hold duration from HOLD_DURATION_SECONDS env var (default 600).
 var holdDurationSeconds =
     int.TryParse(builder.Configuration["HOLD_DURATION_SECONDS"], out var seconds) && seconds > 0
         ? seconds
-        : 60;
+        : 600;
+
 builder.Services.AddSingleton(new HoldSettings { DurationSeconds = holdDurationSeconds });
 
 builder.Services.AddHostedService<HoldExpiryService>();
 
 var app = builder.Build();
 
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// Lightweight liveness endpoint used by Docker/Compose health checks.
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

@@ -1,0 +1,22 @@
+# Build artifacts
+bin/
+obj/
+**/bin/
+**/obj/
+
+# Test project — not part of the published app
+SchoolAdmission.Tests/
+
+# IDE / tooling
+.vs/
+*.user
+*.suo
+
+# Local config / secrets (env vars take precedence in Docker anyway)
+appsettings.Development.json
+
+# Docker / git
+Dockerfile
+.dockerignore
+.git/
+.gitignore
