@@ -1,6 +1,8 @@
 
 FROM node:22-alpine AS build
 WORKDIR /app
+ARG VITE_ADMIN_SECRET_KEY
+ENV VITE_ADMIN_SECRET_KEY=${VITE_ADMIN_SECRET_KEY}
 
 COPY package.json package-lock.json ./
 RUN npm ci

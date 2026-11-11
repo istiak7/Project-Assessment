@@ -12,6 +12,16 @@ RUN dotnet publish "School-Admission-System-Backend.csproj" \
     --no-restore \
     /p:UseAppHost=false
 
+FROM build AS test
+RUN dotnet restore "SchoolAdmission.Tests/SchoolAdmission.Tests.csproj"
+RUN dotnet build "SchoolAdmission.Tests/SchoolAdmission.Tests.csproj" \
+    -c Release \
+    --no-restore
+ENTRYPOINT ["dotnet", "test", "SchoolAdmission.Tests/SchoolAdmission.Tests.csproj", \
+    "-c", "Release", \
+    "--no-build", \
+    "--logger", "console;verbosity=normal"]
+
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
 WORKDIR /app
 

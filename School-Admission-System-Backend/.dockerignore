@@ -4,8 +4,9 @@ obj/
 **/bin/
 **/obj/
 
-# Test project — not part of the published app
-SchoolAdmission.Tests/
+# Test project is included in the build context so the Dockerfile "test" stage
+# can run it. It is excluded from the published app by the main .csproj
+# (Compile/Content Remove) and never copied into the "final" runtime image.
 
 # IDE / tooling
 .vs/
@@ -20,3 +21,4 @@ Dockerfile
 .dockerignore
 .git/
 .gitignore
+

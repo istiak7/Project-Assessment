@@ -22,8 +22,8 @@ To ensure expired seats are immediately available without requiring any API hit,
    - Any attempt to confirm an expired hold before the background worker cleans it up will be rejected at the API query level.
 
 
-## student id is stored in local storage, that's why when page refresh or shut down browser, no affect to see apply details.
+## * student id is stored in local storage, that's why when page refresh or shut down browser, no affect to see apply details.
 
-## Added polling using javascript timer function, that's why every 5s page automatically refresh,and user will see updated data like available seat, held seat.
+## * Added polling using javascript timer function, that's why every 5s page automatically refresh,and user will see updated data like available seat, held seat.
 
-## Check Uniqueness by studentId,classId and held status, when confirm request multiple times from user.
+## * Check Uniqueness by studentId,classId and held status, when confirm request multiple times from user.

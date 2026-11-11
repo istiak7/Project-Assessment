@@ -18,6 +18,25 @@ services:
     networks:
       - app-network
 
+  # One-shot test runner. Builds the "test" stage of the backend Dockerfile,
+  # runs SchoolAdmission.Tests against the db service, then exits.
+  # The backend only starts if this exits with code 0.
+  backend-tests:
+    build:
+      context: ./School-Admission-System-Backend
+      dockerfile: Dockerfile
+      target: test
+    container_name: school-admission-backend-tests
+    restart: "no"
+    environment:
+      # SchoolAdmission.Tests reads its connection string from this variable name.
+      schooladmission_db: "Host=db;Port=5432;Database=${POSTGRES_DB:-schooladmission_db};User ID=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-istiakahmed};Minimum Pool Size=4;Maximum Pool Size=50;Timeout=60;Command Timeout=60;Keepalive=10;"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
   backend:
     build:
       context: ./School-Admission-System-Backend
@@ -33,6 +52,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      backend-tests:
+        condition: service_completed_successfully
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     healthcheck:
