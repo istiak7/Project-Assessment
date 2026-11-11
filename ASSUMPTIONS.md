@@ -27,3 +27,5 @@ Query-Level check
 ## Added polling using javascript timer function, that's why every 5s page automatically refresh,and user will see updated data like available seat, held seat.
 
 ## Check Uniqueness by studentId,classId and held status, when confirm request multiple times from user.
+
+* Only admin can create class,now it just hardcoded a password, and handle with frontend.no jwt or rolebased auth use.

@@ -40,7 +40,7 @@ builder.Services.AddRepositories();
 var holdDurationSeconds =
     int.TryParse(builder.Configuration["HOLD_DURATION_SECONDS"], out var seconds) && seconds > 0
         ? seconds
-        : 60;
+        : 600;
 
 builder.Services.AddSingleton(new HoldSettings { DurationSeconds = holdDurationSeconds });
 
