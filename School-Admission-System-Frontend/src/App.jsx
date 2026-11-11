@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import {
   getClasses,
   createClass,
@@ -181,7 +181,7 @@ function HoldModal({ hold, studentId, onClose, onChange }) {
   )
 }
 
-function ClassCard({ c, studentId, myHold, onOpenHold, onChange }) {
+const ClassCard = memo(function ClassCard({ c, studentId, myHold, onOpenHold, onChange }) {
   const confirmedPct = c.totalSeats ? (c.confirmedSeats / c.totalSeats) * 100 : 0
   const heldPct = c.totalSeats ? (c.heldSeats / c.totalSeats) * 100 : 0
   const isFull = c.availableSeats <= 0
@@ -328,7 +328,7 @@ function ClassCard({ c, studentId, myHold, onOpenHold, onChange }) {
       {msg && <p className={`card-msg ${msg.type}`}>{msg.text}</p>}
     </div>
   )
-}
+})
 
 function App() {
   const [classes, setClasses] = useState([])
@@ -366,20 +366,25 @@ function App() {
     setModalHold(null)
   }
 
-  const loadClasses = () => {
-    setLoading(true)
-    getClasses()
+  const loadClasses = useCallback((initial = false) => {
+    if (initial) setLoading(true)
+    return getClasses()
       .then((data) => {
-        setClasses(Array.isArray(data) ? data : [])
-        setError('')
+        const nextClasses = Array.isArray(data) ? data : []
+        setClasses((current) =>
+          JSON.stringify(current) === JSON.stringify(nextClasses) ? current : nextClasses,
+        )
+        setError((current) => (current === '' ? current : ''))
       })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false))
-  }
+      .catch((err) => setError((current) => (current === err.message ? current : err.message)))
+      .finally(() => {
+        if (initial) setLoading(false)
+      })
+  }, [])
 
-  const loadMyHolds = () => {
+  const loadMyHolds = useCallback(() => {
     if (!/^\d{17}$/.test(studentId)) {
-      setHoldsByClass({})
+      setHoldsByClass((current) => (Object.keys(current).length === 0 ? current : {}))
       return
     }
     getMyHolds(studentId)
@@ -390,25 +395,32 @@ function App() {
             map[h.classId] = h
           }
         }
-        setHoldsByClass(map)
+        setHoldsByClass((current) =>
+          JSON.stringify(current) === JSON.stringify(map) ? current : map,
+        )
       })
-      .catch(() => setHoldsByClass({}))
-  }
-
-  const refresh = () => {
-    loadClasses()
-    loadMyHolds()
-  }
-
-  useEffect(() => {
-    loadClasses()
-  }, [])
-
-  useEffect(() => {
-    loadMyHolds()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch(() =>
+        setHoldsByClass((current) => (Object.keys(current).length === 0 ? current : {})),
+      )
   }, [studentId])
 
+  const refresh = useCallback(() => {
+    loadClasses(false)
+    loadMyHolds()
+  }, [loadClasses, loadMyHolds])
+
+  useEffect(() => {
+    loadClasses(true)
+  }, [loadClasses])
+
+  useEffect(() => {
+    loadMyHolds()
+  }, [loadMyHolds])
+
+  useEffect(() => {
+    const interval = setInterval(refresh, 5000)
+    return () => clearInterval(interval)
+  }, [refresh])
   const handleSubmit = async (e) => {
     e.preventDefault()
     setFormError('')
