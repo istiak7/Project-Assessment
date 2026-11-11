@@ -55,6 +55,32 @@
   margin-left: auto;
 }
 
+.admin-toggle,
+.admin-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-input {
+  width: 150px;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.admin-active {
+  color: var(--success, #15803d);
+  font-weight: 600;
+}
+
+.admin-error {
+  color: var(--danger, #dc2626);
+  font-size: 0.8rem;
+}
+
 .auth-form {
   display: flex;
   gap: 0.5rem;

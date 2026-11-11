@@ -26,6 +26,7 @@ export const getClasses = () => apiFetch('/classes')
 export const createClass = (name, totalSeats) =>
   apiFetch('/classes', {
     method: 'POST',
+    headers: { 'X-Admin-Secret': import.meta.env.VITE_ADMIN_SECRET_KEY },
     body: JSON.stringify({ name, totalSeats }),
   })
 

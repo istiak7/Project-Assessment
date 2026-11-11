@@ -339,6 +339,9 @@ function App() {
   const [totalSeats, setTotalSeats] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [adminPasswordInput, setAdminPasswordInput] = useState('')
+  const [adminError, setAdminError] = useState('')
 
   const [studentId, setStudentId] = useState(
     () => localStorage.getItem('studentId') || '',
@@ -364,6 +367,27 @@ function App() {
     setDraft('')
     setHoldsByClass({})
     setModalHold(null)
+  }
+
+  const handleAdminUnlock = (e) => {
+    e.preventDefault()
+    if (adminPasswordInput === import.meta.env.VITE_ADMIN_SECRET_KEY) {
+      localStorage.removeItem('studentId')
+      setStudentId('')
+      setDraft('')
+      setHoldsByClass({})
+      setModalHold(null)
+      setIsAdmin(true)
+      setAdminPasswordInput('')
+      setAdminError('')
+    } else {
+      setAdminError('Incorrect admin password.')
+    }
+  }
+
+  const handleAdminExit = () => {
+    setIsAdmin(false)
+    setAdminError('')
   }
 
   const loadClasses = useCallback((initial = false) => {
@@ -423,6 +447,7 @@ function App() {
   }, [refresh])
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (!isAdmin) return
     setFormError('')
     setSubmitting(true)
     try {
@@ -448,7 +473,35 @@ function App() {
               <small>Class & seat management</small>
             </span>
           </div>
-          <div className="auth">
+          <div className="admin-toggle">
+            {isAdmin ? (
+              <>
+                <span className="admin-active">🔒 Admin Mode Active</span>
+                <button className="btn-reset" type="button" onClick={handleAdminExit}>
+                  Exit Admin Mode
+                </button>
+              </>
+            ) : (
+              <form className="admin-form" onSubmit={handleAdminUnlock}>
+                <input
+                  className="admin-input"
+                  type="password"
+                  aria-label="Admin password"
+                  placeholder="Admin password"
+                  value={adminPasswordInput}
+                  onChange={(e) => {
+                    setAdminPasswordInput(e.target.value)
+                    setAdminError('')
+                  }}
+                />
+                <button className="btn-login" type="submit">
+                  Unlock Admin Mode
+                </button>
+                {adminError && <span className="admin-error" role="alert">{adminError}</span>}
+              </form>
+            )}
+          </div>
+          {!isAdmin && <div className="auth">
             {loggedIn ? (
               <div className="auth-in">
                 <span className="auth-chip">
@@ -486,12 +539,12 @@ function App() {
                 </button>
               </form>
             )}
-          </div>
+          </div>}
         </div>
       </header>
 
       <main className="container">
-        <section className="panel">
+        {isAdmin && <section className="panel">
           <h2>Create a class</h2>
           <p className="subtitle">Add a new class and set how many seats it offers.</p>
           <form className="form-grid" onSubmit={handleSubmit}>
@@ -523,7 +576,7 @@ function App() {
             </button>
           </form>
           {formError && <p className="msg error">{formError}</p>}
-        </section>
+        </section>}
 
         <div className="section-head">
           <h2>All classes</h2>
